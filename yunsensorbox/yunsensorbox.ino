@@ -34,9 +34,9 @@ String ISBucketURL = "https://groker.initialstate.com/api/buckets";
 // URL to IS Event API
 String ISEventURL = "https://groker.initialstate.com/api/events";
 // Access key (the one you find in your account settings):
-String accessKey = "k2VMFzNkBbwmthaG68JzvEOQ9e255TOO";
+String accessKey = "XXX";
 // Bucket key (hidden reference to your bucket that allows appending):
-String bucketKey = "QWJTR5SNMTRK";
+String bucketKey = "XXX";
 // Bucket name (name your data will be associated with in Initial State):
 String bucketName = ":house_with_garden: Arduino Uno Stream";
 // How many signals are in your stream? You can have as few or as many as you want
