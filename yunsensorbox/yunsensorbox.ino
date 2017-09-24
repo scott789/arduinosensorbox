@@ -1,13 +1,24 @@
 // Process.h gives us access to the Process class, which lets
 // us communicate with the shell
-#include <Bridge.h>
+//#include <Bridge.h>
 #include <Process.h>
 #include "DHT.h"
+#include <SPI.h>
+#include <Ethernet.h>
+
+byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
+char server[] = "insecure-groker.initialstate.com";    // name address for Google (using DNS)
+IPAddress ip(192, 168, 0, 177);
 
 // Temperature/Humidity Sensor
 #define DHTPIN 2
-#define DHTTYPE DHT22
+#define DHTTYPE DHT11
 DHT dht(DHTPIN, DHTTYPE);
+
+// Initialize the Ethernet client library
+// with the IP address and port of the server
+// that you want to connect to (port 80 is default for HTTP):
+EthernetClient client;
 
 // Light Sensor
 int lightPin = 0;
@@ -23,11 +34,11 @@ String ISBucketURL = "https://groker.initialstate.com/api/buckets";
 // URL to IS Event API
 String ISEventURL = "https://groker.initialstate.com/api/events";
 // Access key (the one you find in your account settings):
-String accessKey = "Your_Access_Key";
+String accessKey = "k2VMFzNkBbwmthaG68JzvEOQ9e255TOO";
 // Bucket key (hidden reference to your bucket that allows appending):
-String bucketKey = "yun_sensor_box";
+String bucketKey = "QWJTR5SNMTRK";
 // Bucket name (name your data will be associated with in Initial State):
-String bucketName = ":house_with_garden: Yun Sensor Box";
+String bucketName = ":house_with_garden: Arduino Uno Stream";
 // How many signals are in your stream? You can have as few or as many as you want
 const int NUM_SIGNALS = 6;
 // What are the names of your signals (i.e. "Temperature", "Humidity", etc.)
@@ -39,7 +50,7 @@ String signalData[NUM_SIGNALS];
 // This only runs once at the very beginning
 void setup() 
 {
-  Bridge.begin();
+  //Bridge.begin();
   Serial.begin(9600);
 
   dht.begin();
@@ -50,18 +61,65 @@ void setup()
     // The postBucket() function creates a bucket 
     // (unnecessary if the bucket already exists)
     postBucket();
+
+
+  // start the Ethernet connection:
+  if (Ethernet.begin(mac) == 0) {
+    Serial.println("Failed to configure Ethernet using DHCP");
+    // try to congifure using IP address instead of DHCP:
+    Ethernet.begin(mac, ip);
+  }
+  // give the Ethernet shield a second to initialize:
+  delay(1000);
+  Serial.println("connecting...");
+
+  // if you get a connection, report back via serial:
+  if (client.connect(server, 80)) {
+    Serial.println("connected");
+    // Make a HTTP request:
+    client.println("GET /api/events?accessKey=k2VMFzNkBbwmthaG68JzvEOQ9e255TOO&bucketKey=arduino_stream&streamKey=1 HTTP/1.1");
+    client.println("Host: insecure-groker.initialstate.com");
+    //client.println("Connection: close");
+    client.println();
+  } else {
+    // if you didn't get a connection to the server:
+    Serial.println("connection failed");
+  }
 }
+
+
 
 // This repeats
 void loop()
 {  
-  // Wait 2 seconds for the sensors to initialize
-  delay(2000);
+  // Wait 5 seconds for the sensors to initialize
+  delay(5000);
+
+  if (client.available()) {
+    char c = client.read();
+    Serial.print(c);
+  }
+  else
+  {
+    Serial.println("No client");
+  }
+
+  // if the server's disconnected, stop the client:
+  if (!client.connected()) {
+    Serial.println();
+    Serial.println("disconnecting.");
+    client.stop();
+
+    // do nothing forevermore:
+    //while (true);
+  }
+
 
   // Gather Data
   takeTempHum();
   takeLight();
   takeMotion();
+  Serial.println("Gathered data");
 
   // Post Data
   Serial.println("Posting Data!");
@@ -69,7 +127,7 @@ void loop()
   postData(); 
   // Wait for 41 seconds before collecting and sending the next batch
   // This makes total time between values 1 minute
-  delay(41000);
+  delay(5000);
 }
 
 
@@ -179,6 +237,8 @@ void postBucket()
   // Run the process
   isbucket.run();
 
+  Serial.println("Running process");
+
   Serial.flush();
 }
 
@@ -216,6 +276,9 @@ void postData()
     jsonData = "[";
     jsonData += "{\"key\": \"" + signalName[i] + "\", \"value\": \"" + signalData[i] + "\"}";
     jsonData += "]";
+
+    Serial.print("jsonData: ");
+    Serial.println(jsonData);
 
     isstreamer.addParameter(jsonData);
 
